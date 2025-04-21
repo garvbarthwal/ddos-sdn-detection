@@ -1,47 +1,65 @@
-from mininet.topo import Topo
+#!/usr/bin/env python
 from mininet.net import Mininet
-from mininet.node import RemoteController
+from mininet.node import Controller, RemoteController, OVSController
+from mininet.node import CPULimitedHost, Host, Node
+from mininet.node import OVSKernelSwitch, UserSwitch
+from mininet.node import IVSSwitch
 from mininet.cli import CLI
-from mininet.log import setLogLevel
+from mininet.log import setLogLevel, info
+from mininet.link import TCLink, Intf
+from subprocess import call
 
-class custom_topo(Topo):
-    def build(self):
-        # Adding Switches
-        s1=self.addSwitch('s1')       
-        s2=self.addSwitch('s2')
-        s3=self.addSwitch('s3')
+def myNetwork():
 
-        #Adding Hosts
-        h1=self.addHost('h1', ip="10.0.0.1/24")
-        h2=self.addHost('h2', ip="10.0.0.2/24")
-        h3=self.addHost('h3', ip="10.0.0.3/24")
-        h4=self.addHost('h4', ip="10.0.0.4/24")
-        h5=self.addHost('h5', ip="10.0.0.5/24")
+    net = Mininet( topo=None,
+                   build=False,
+                   ipBase='10.0.0.0/8')
 
-        #Adding Links 
-        self.addLink(h1, s1)
-        self.addLink(h2, s1) # attacker
+    info( '*** Adding controller\n' )
+    c0=net.addController(name='c0',
+                      controller=RemoteController,
+                      ip='127.0.0.1',
+                      protocol='tcp',
+                      port=6633)
 
-        self.addLink(h3, s2) # normal user
-        self.addLink(h4, s2) # attacker
-        
-        self.addLink(h5, s3) # victim server
+    info( '*** Add switches\n')
+    s1 = net.addSwitch('s1', cls=OVSKernelSwitch)
+    s2 = net.addSwitch('s2', cls=OVSKernelSwitch)
+    s3 = net.addSwitch('s3', cls=OVSKernelSwitch)
 
-        self.addLink(s1, s3)
-        self.addLink(s2, s3)
+    info( '*** Add hosts\n')
+    h1 = net.addHost('h1', cls=Host, ip='10.0.0.1', defaultRoute=None)
+    h2 = net.addHost('h2', cls=Host, ip='10.0.0.2', defaultRoute=None)
+    h3 = net.addHost('h3', cls=Host, ip='10.0.0.3', defaultRoute=None)
+    h4 = net.addHost('h4', cls=Host, ip='10.0.0.4', defaultRoute=None)
+    h5 = net.addHost('h5', cls=Host, ip='10.0.0.5', defaultRoute=None)
 
-topos = {"customtopo": (lambda: custom_topo())}
+    info( '*** Add links\n')
+    net.addLink(s1, h1)
+    net.addLink(s1, h2)
+    net.addLink(s2, h3)
+    net.addLink(s2, h4)
+    net.addLink(s3, h5)
+    net.addLink(s1, s2)
+    net.addLink(s2, s3)
 
-if __name__ == '__main__':
-    setLogLevel('info')
+    info( '*** Starting network\n')
+    net.build()
+    info( '*** Starting controllers\n')
+    for controller in net.controllers:
+        controller.start()
 
-    topo = custom_topo()
-    net = Mininet(topo=topo, controller=None)
+    info( '*** Starting switches\n')
+    net.get('s1').start([c0])
+    net.get('s2').start([c0])
+    net.get('s3').start([c0])
 
-    # Add remote controller (e.g., Ryu on localhost:6653)
-    c0 = RemoteController('c0', ip='127.0.0.1', port=6653)
-    net.addController(c0)
+    info( '*** Post configure switches and hosts\n')
 
-    net.start()
     CLI(net)
     net.stop()
+
+if __name__ == '__main__':
+    setLogLevel( 'info' )
+    myNetwork()
+
