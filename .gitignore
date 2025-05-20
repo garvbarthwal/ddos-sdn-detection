@@ -1,2 +1,7 @@
 ryu39-env
 __pycache__
+model
+server/node_modules
+controller.py
+archive (1)
+.venv/
