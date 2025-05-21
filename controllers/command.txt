@@ -4,3 +4,5 @@ cd /home/garv/Desktop/Cyber-Security && ryu-manager controllers/ml_flow_controll
 
 h1 iperf -s & to start a iperf server
 then h3 iperf -c 10.0.0.3
+
+tcp.flags.syn == 1 && tcp.flags.ack == 0
