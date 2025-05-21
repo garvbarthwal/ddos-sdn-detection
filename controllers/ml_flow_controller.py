@@ -44,10 +44,10 @@ class DDOSDefender(app_manager.RyuApp):
             logger.info("Loading Keras DDoS detection model...")
             # Try with both potential model files in the workspace
             try:
-                self.model = keras.models.load_model('model.h5', compile=False)
+                self.model = keras.models.load_model('/home/garv/Desktop/Cyber-Security/model.h5', compile=False)
                 logger.info("Model loaded successfully from model.h5")
             except:
-                self.model = keras.models.load_model('model2.keras', compile=False)
+                self.model = keras.models.load_model('/home/garv/Desktop/Cyber-Security/model2.keras', compile=False)
                 logger.info("Model loaded successfully from model2.keras")
         except Exception as e:
             logger.error(f"Failed to load model: {str(e)}")
@@ -214,7 +214,7 @@ class DDOSDefender(app_manager.RyuApp):
         # Update timestamps
         self.flow_timestamps[flow_key][proto].append(timestamp)
         
-        # Update protocol counts
+        # Update protocol counts (this is a lambda function that returns a default of 0)
         self.protocol_counts[flow_key][proto] += 1
 
     def _extract_features(self, flow_key):

