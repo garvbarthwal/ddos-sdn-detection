@@ -5,3 +5,4 @@ server/node_modules
 controller.py
 archive (1)
 venv/
+.ipynb_checkpoints
