@@ -50,8 +50,8 @@ class EnhancedDDoSDetector(app_manager.RyuApp):
         self.syn_window = 3
 
         try:
-            self.model = load_model("/home/garv/Desktop/Cyber-Security/ddos_detection_model01.keras")
-            self.scaler = joblib.load("/home/garv/Desktop/Cyber-Security/scaler.pkl")
+            self.model = load_model("/home/garv/Desktop/Cyber-Security/Models/ddos_detection_model01.keras")
+            self.scaler = joblib.load("/home/garv/Desktop/Cyber-Security/Models/scaler.pkl")
             self.logger.info("DDoS detection model loaded successfully.")
         except Exception as e:
             self.logger.warning(f"Failed to load DDoS detection model: {e}")
@@ -83,7 +83,7 @@ class EnhancedDDoSDetector(app_manager.RyuApp):
                             new_sample_df = pd.DataFrame(sample, columns=features_column)
                             sample_scaled = self.scaler.transform(new_sample_df)
                             prediction_prob = self.model.predict(sample_scaled)[0][0]
-                            # print(sample_scaled)
+                            print(sample_scaled)
                             self.logger.info(f"DDoS probability score: {prediction_prob:.4f}")
                             threshold = 0.3
                             is_attack = prediction_prob >= threshold

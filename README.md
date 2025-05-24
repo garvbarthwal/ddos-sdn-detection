@@ -8,7 +8,7 @@ Welcome to the **Cyber-Security** project repository! This guide will walk you t
 Meet the amazing team behind this project:
 
 -   **Pixel Kathait**  
-    GitHub: [@pixelkathait](https://github.com/pixelkathait)
+    GitHub: [@pixelkathait](https://github.com/Pixel-20)
     
 -   **Abhivyakti Satti**  
     GitHub: [@AbhivyaktiSatti](https://github.com/AbhivyaktiSatti)
