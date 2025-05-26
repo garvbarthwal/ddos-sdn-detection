@@ -50,8 +50,8 @@ class EnhancedDDoSDetector(app_manager.RyuApp):
         self.syn_window = 3
 
         try:
-            self.model = load_model("/home/garv/Desktop/Cyber-Security/Models/ddos_detection_model01.keras")
-            self.scaler = joblib.load("/home/garv/Desktop/Cyber-Security/Models/scaler.pkl")
+            self.model = load_model("/home/garv/Desktop/Cyber-Security/Models/ddos_detection_model11.h5")
+            self.scaler = joblib.load("/home/garv/Desktop/Cyber-Security/Models/scaler1.pkl")
             self.logger.info("DDoS detection model loaded successfully.")
         except Exception as e:
             self.logger.warning(f"Failed to load DDoS detection model: {e}")
@@ -63,38 +63,53 @@ class EnhancedDDoSDetector(app_manager.RyuApp):
     def _monitor(self):
         while True:
             current_time = time.time()
-            # SYN flood detection based on counters
+            detected_ips = set()  # Track IPs detected by heuristics this cycle
+            
+            # Priority 1: SYN flood detection (heuristic approach)
             for ip, data in list(self.syn_counters.items()):
                 if current_time - data['first_seen'] > self.syn_window:
                     syn_rate = data['count'] / self.syn_window
                     if data['count'] > self.syn_threshold and ip not in self.blocked_ips:
                         self.blocked_ips.add(ip)
+                        detected_ips.add(ip)  # Mark as detected by heuristics
                         self.logger.info(f"[ALERT] SYN Flood Detected - IP: {ip}, Rate: {syn_rate:.2f} SYNs/sec")
                         self._block_ip(ip)
                     self.syn_counters[ip] = {'count': 0, 'first_seen': current_time}
 
-            # ML-based detection
+            # Priority 2: ML-based detection (only if heuristics didn't catch it)
             if self.model:
                 for key, flow in list(self.flow_stats.items()):
                     if current_time - flow['last_seen'] > 1:
+                        src_ip = key[0]
+                        
+                        # Skip ML analysis if this IP was already caught by heuristics
+                        if src_ip in detected_ips or src_ip in self.blocked_ips:
+                            del self.flow_stats[key]
+                            continue
+                        
                         features = self._extract_features(flow)
                         try:
                             sample = np.array(features).reshape(1, -1)
                             new_sample_df = pd.DataFrame(sample, columns=features_column)
                             sample_scaled = self.scaler.transform(new_sample_df)
                             prediction_prob = self.model.predict(sample_scaled)[0][0]
-                            print(sample_scaled)
-                            self.logger.info(f"DDoS probability score: {prediction_prob:.4f}")
+                            
+                            self.logger.info(f"ML DDoS probability for {src_ip}: {prediction_prob:.4f}")
                             threshold = 0.3
                             is_attack = prediction_prob >= threshold
-                            # print(is_attack)
-                            src_ip = key[0]
-                            if is_attack and src_ip not in self.blocked_ips:
+                            
+                            if is_attack:
                                 self.blocked_ips.add(src_ip)
-                                self.logger.info(f"[ALERT] DDoS Detected via ML - IP: {src_ip}, Protocol: {flow['protocol']}")
+                                self.logger.info(f"[ALERT] DDoS Detected via ML - IP: {src_ip}, Protocol: {flow['protocol']}, Confidence: {prediction_prob:.4f}")
                                 self._block_ip(src_ip)
                         except Exception as e:
-                            self.logger.warning(f"Prediction error: {e}")
+                            self.logger.warning(f"ML prediction error for {src_ip}: {e}")
+                        
+                        del self.flow_stats[key]
+            else:
+                # If no ML model available, just clean up old flows
+                for key, flow in list(self.flow_stats.items()):
+                    if current_time - flow['last_seen'] > 1:
                         del self.flow_stats[key]
 
             hub.sleep(1)
