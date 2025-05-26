@@ -48,6 +48,12 @@ class EnhancedDDoSDetector(app_manager.RyuApp):
         self.syn_counters = {}
         self.syn_threshold = 50
         self.syn_window = 3
+        
+        # Victim servers protection - Add your victim server IPs here
+        self.victim_servers = {
+            '10.0.0.1'  # victim server
+        }
+        self.logger.info(f"Protected victim servers: {self.victim_servers}")
 
         try:
             self.model = load_model("/home/garv/Desktop/Cyber-Security/Models/ddos_detection_model11.h5")
@@ -60,6 +66,10 @@ class EnhancedDDoSDetector(app_manager.RyuApp):
 
         self.monitor_thread = hub.spawn(self._monitor)
 
+    def is_victim_server(self, ip):
+        """Check if an IP is a protected victim server"""
+        return ip in self.victim_servers
+
     def _monitor(self):
         while True:
             current_time = time.time()
@@ -70,10 +80,14 @@ class EnhancedDDoSDetector(app_manager.RyuApp):
                 if current_time - data['first_seen'] > self.syn_window:
                     syn_rate = data['count'] / self.syn_window
                     if data['count'] > self.syn_threshold and ip not in self.blocked_ips:
-                        self.blocked_ips.add(ip)
-                        detected_ips.add(ip)  # Mark as detected by heuristics
-                        self.logger.info(f"[ALERT] SYN Flood Detected - IP: {ip}, Rate: {syn_rate:.2f} SYNs/sec")
-                        self._block_ip(ip)
+                        # Check if this is a victim server before blocking
+                        if self.is_victim_server(ip):
+                            self.logger.info(f"[PROTECTION] Skipping block for victim server IP: {ip} (SYN rate: {syn_rate:.2f}/sec)")
+                        else:
+                            self.blocked_ips.add(ip)
+                            detected_ips.add(ip)  # Mark as detected by heuristics
+                            self.logger.info(f"[ALERT] SYN Flood Detected - IP: {ip}, Rate: {syn_rate:.2f} SYNs/sec")
+                            self._block_ip(ip)
                     self.syn_counters[ip] = {'count': 0, 'first_seen': current_time}
 
             # Priority 2: ML-based detection (only if heuristics didn't catch it)
@@ -99,9 +113,13 @@ class EnhancedDDoSDetector(app_manager.RyuApp):
                             is_attack = prediction_prob >= threshold
                             
                             if is_attack:
-                                self.blocked_ips.add(src_ip)
-                                self.logger.info(f"[ALERT] DDoS Detected via ML - IP: {src_ip}, Protocol: {flow['protocol']}, Confidence: {prediction_prob:.4f}")
-                                self._block_ip(src_ip)
+                                # Check if this is a victim server before blocking
+                                if self.is_victim_server(src_ip):
+                                    self.logger.info(f"[PROTECTION] Skipping ML-based block for victim server IP: {src_ip} (Confidence: {prediction_prob:.4f})")
+                                else:
+                                    self.blocked_ips.add(src_ip)
+                                    self.logger.info(f"[ALERT] DDoS Detected via ML - IP: {src_ip}, Protocol: {flow['protocol']}, Confidence: {prediction_prob:.4f}")
+                                    self._block_ip(src_ip)
                         except Exception as e:
                             self.logger.warning(f"ML prediction error for {src_ip}: {e}")
                         
@@ -170,12 +188,18 @@ class EnhancedDDoSDetector(app_manager.RyuApp):
         return features
 
     def _block_ip(self, ip):
+        """Block an IP address only if it's not a victim server"""
+        if self.is_victim_server(ip):
+            self.logger.warning(f"[PROTECTION] Attempted to block victim server IP: {ip} - BLOCKED BY PROTECTION")
+            return False
+        
         self.logger.info(f"Blocking IP: {ip}")
         for dp in self.datapaths.values():
             parser = dp.ofproto_parser
             match = parser.OFPMatch(ipv4_src=ip)
             actions = []  # Drop
             self.add_flow(dp, 100, match, actions)
+        return True
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
